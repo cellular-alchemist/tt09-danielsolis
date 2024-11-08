@@ -71,7 +71,7 @@ module tt_um_cellular_alchemist (
         end else begin
             temp_activity_count = 3'd0; // Use blocking assignment for accumulation
             for (i = 0; i < 7; i = i + 1) begin
-                temp_activity_count = temp_activity_count + spikes[i];
+                temp_activity_count = temp_activity_count + {2'b00, spikes[i]};
             end
             activity_count <= temp_activity_count; // Update activity_count on clock edge
         end
@@ -81,5 +81,6 @@ module tt_um_cellular_alchemist (
     assign uo_out = {activity_count[2:0], 2'b00, spikes[6:4]};
 
 endmodule
+
 
 
