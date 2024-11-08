@@ -5,7 +5,7 @@
 SIM ?= icarus
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
-PROJECT_SOURCES = tt_um_cellular-alchemist.v iz_neuron.v hopfield.v hebbian.v
+PROJECT_SOURCES = tt_um_cellular_alchemist.v iz_neuron.v hopfield.v hebbian.v
 
 ifneq ($(GATES),yes)
 

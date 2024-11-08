@@ -1,7 +1,7 @@
 `default_nettype none  // Disable implicit net declarations for safety
 
 // Top-level module for the Hopfield network with on-chip learning
-module tt_um_hopfield (
+module tt_um_cellular_alchemist (
     // Dedicated inputs and outputs
     input  wire [7:0] ui_in,     // Dedicated inputs (e.g., external control signals)
     output wire [7:0] uo_out,    // Dedicated outputs (e.g., network status indicators)
