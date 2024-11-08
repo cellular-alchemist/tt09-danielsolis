@@ -4,7 +4,7 @@
 module hebbian_learning #(
     parameter N = 7  // Total number of neurons in the network
 )(
-    input wire clk,                              // Clock signal
+    input wire clk,                              // Clock signal .
     input wire reset_n,                          // Active-low reset signal
     input wire [N-1:0] spikes,                   // Spike outputs from all neurons
     input wire learning_enable,                  // Enable signal for learning
