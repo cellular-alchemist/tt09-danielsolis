@@ -1,6 +1,6 @@
 `default_nettype none  // Disable implicit net declarations for safety
 
-// Simplified Hopfield network module with binary weights
+// Hopfield network module with on-chip Hebbian learning
 module hopfield_network(
     input wire clk,                       // Clock signal
     input wire reset_n,                   // Active-low reset signal
@@ -11,30 +11,30 @@ module hopfield_network(
 );
 
     parameter N = 7;                      // Total number of neurons
-    integer i, j;                         // Loop variables
 
     // ==============================
     // Neuron Outputs
     // ==============================
 
-    reg [7:0] v [0:N-1];                  // Membrane potentials of neurons (8-bit integers)
-    wire neuron_spikes [0:N-1];           // Individual neuron spike outputs
+    wire signed [31:0] v [0:N-1];          // Membrane potentials of neurons
+    wire signed [31:0] u [0:N-1];          // Recovery variables of neurons
+    wire neuron_spikes [0:N-1];            // Individual neuron spike outputs
 
     // ==============================
     // Synaptic Weights and Currents
     // ==============================
 
-    // Binary synaptic weights matrix (-1, 0, or 1)
-    reg signed [1:0] weights [0:N-1][0:N-1]; // Weights from neuron j to neuron i
+    // Synaptic weights matrix
+    wire signed [15:0] weights [0:N-1][0:N-1]; // Weights from neuron j to neuron i in Q8.8 format
 
     // Synaptic currents
-    reg signed [7:0] currents [0:N-1];       // Synaptic currents for each neuron
+    reg signed [31:0] currents [0:N-1];        // Synaptic currents for each neuron in Q16.16 format
 
     // ==============================
-    // Instantiate Simplified Hebbian Learning Module
+    // Instantiate Hebbian Learning Module
     // ==============================
 
-    hebbian_learning_simplified #(.N(N)) learning_inst (
+    hebbian_learning #(.N(N)) learning_inst (
         .clk(clk),
         .reset_n(reset_n),
         .spikes(neuron_spikes),
@@ -43,35 +43,50 @@ module hopfield_network(
     );
 
     // ==============================
-    // Neuron Dynamics
+    // Instantiate Neurons
     // ==============================
 
-    // Threshold for spike generation
-    parameter signed [7:0] threshold = 8'sd100; // Example threshold value
-
-    always @(posedge clk or negedge reset_n) begin
-        if (!reset_n) begin
-            // Reset neuron potentials
-            for (i = 0; i < N; i = i + 1) begin
-                v[i] <= 8'sd0;
-            end
-        end else begin
-            // Update neuron potentials
-            for (i = 0; i < N; i = i + 1) begin
-                v[i] <= v[i] + currents[i];
-                // Reset potential if it exceeds threshold
-                if (v[i] >= threshold) begin
-                    v[i] <= 8'sd0;
-                end
+    genvar n; // Generate loop variable
+    generate
+        for (n = 0; n < N; n = n + 1) begin : neuron_array
+            if (n < 6) begin
+                // Regular Spiking (RS) neurons (indices 0 to 5)
+                izhikevich_neuron #(
+                    .a_param(32'sd1311),       // 'a' parameter for RS neurons: 0.02 * 2^16
+                    .b_param(32'sd13107),      // 'b' parameter for RS neurons: 0.2 * 2^16
+                    .c_param(-32'sd4259840),   // 'c' parameter for RS neurons: -65 * 2^16
+                    .d_param(32'sd524288)      // 'd' parameter for RS neurons: 8 * 2^16
+                ) neuron_inst (
+                    .clk(clk),                  // Clock signal
+                    .reset_n(reset_n),          // Active-low reset signal
+                    .current(currents[n]),      // Synaptic current input
+                    .v(v[n]),                   // Membrane potential output
+                    .u(u[n]),                   // Recovery variable output
+                    .spike(neuron_spikes[n])    // Spike output
+                );
+            end else begin
+                // Fast Spiking (FS) inhibitory neuron (index 6)
+                izhikevich_neuron #(
+                    .a_param(32'sd6554),       // 'a' parameter for FS neuron: 0.1 * 2^16
+                    .b_param(32'sd13107),      // 'b' parameter for FS neuron: 0.2 * 2^16
+                    .c_param(-32'sd4259840),   // 'c' parameter for FS neuron: -65 * 2^16
+                    .d_param(32'sd131072)      // 'd' parameter for FS neuron: 2 * 2^16
+                ) neuron_inst (
+                    .clk(clk),                  // Clock signal
+                    .reset_n(reset_n),          // Active-low reset signal
+                    .current(currents[n]),      // Synaptic current input
+                    .v(v[n]),                   // Membrane potential output
+                    .u(u[n]),                   // Recovery variable output
+                    .spike(neuron_spikes[n])    // Spike output
+                );
             end
         end
-    end
+    endgenerate
 
-    // Generate spike outputs
+    // Assign neuron_spikes to output port 'spikes'
     generate
-        for (i = 0; i < N; i = i + 1) begin : spike_generation
-            assign neuron_spikes[i] = (v[i] >= threshold) ? 1'b1 : 1'b0;
-            assign spikes[i] = neuron_spikes[i];
+        for (n = 0; n < N; n = n + 1) begin : spike_generation
+            assign spikes[n] = neuron_spikes[n];
         end
     endgenerate
 
@@ -79,21 +94,34 @@ module hopfield_network(
     // Compute Synaptic Currents
     // ==============================
 
+    integer i, j; // Procedural loop variables
     always @(*) begin
         for (i = 0; i < N; i = i + 1) begin
-            currents[i] = 8'sd0; // Initialize current to zero for neuron 'i'
+            currents[i] = 32'sd0; // Initialize current to zero for neuron 'i'
             // Sum contributions from other neurons
             for (j = 0; j < N; j = j + 1) begin
                 if (i != j) begin
-                    // Update current based on weights and spikes
-                    currents[i] = currents[i] + (weights[i][j] * neuron_spikes[j]);
+                    // Multiply weight from neuron 'j' to 'i' by the spike output of neuron 'j'
+                    // neuron_spikes[j] is 1 if neuron 'j' fired, 0 otherwise
+                    // Convert spike (1-bit) to Q8.8 format
+                    reg signed [15:0] spike_fixed_point;
+                    spike_fixed_point = neuron_spikes[j] ? 16'sd256 : 16'sd0; // 1.0 in Q8.8 format
+
+                    // Compute weighted input
+                    reg signed [31:0] weighted_input;
+                    weighted_input = weights[i][j] * spike_fixed_point; // Result in Q16.16 format
+
+                    // Accumulate currents
+                    currents[i] = currents[i] + weighted_input;
                 end
             end
             // Include pattern input during learning phase
             if (learning_enable) begin
+                // Map pattern_input bits to neurons (first 4 neurons)
                 if (i < 4) begin
                     if (pattern_input[i]) begin
-                        currents[i] = currents[i] + 8'sd10; // Fixed input current
+                        // Add a fixed current to neurons corresponding to '1' in pattern_input
+                        currents[i] = currents[i] + 32'sd131072; // Equivalent to 2.0 in Q16.16 format
                     end
                 end
             end
@@ -101,6 +129,5 @@ module hopfield_network(
     end
 
 endmodule
-
 
 
