@@ -1,6 +1,6 @@
 `default_nettype none  // Disable implicit net declarations for safety.
 
-// Izhikevich neuron module with parameterizable neuron type (RS or FS)
+// Izhikevich neuron module with parameterizable neuron type (RS or FS).
 // Uses fixed-point arithmetic in Q16.16 format
 module izhikevich_neuron #(
     // Parameters are in Q16.16 fixed-point format (32 bits total, 16 integer bits, 16 fractional bits)
