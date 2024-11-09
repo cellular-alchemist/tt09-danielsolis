@@ -1,12 +1,12 @@
-`default_nettype none  // Disable implicit net declarations for safety
+`default_nettype none  // Disable implicit net declarations for safety.
 
-// Hopfield network module with on-chip Hebbian learning
 module hopfield_network(
     input wire clk,                       // Clock signal
     input wire reset_n,                   // Active-low reset signal
     input wire learning_enable,           // Learning enable signal
     input wire [3:0] pattern_input,       // 4-bit Pattern input (from external source)
     output wire [6:0] spikes              // Spike outputs from neurons
+    // Additional ports can be added if necessary
 );
 
     parameter N = 7;                      // Total number of neurons
@@ -16,8 +16,6 @@ module hopfield_network(
     // ==============================
 
     wire [N-1:0] neuron_spikes;           // Declare as vector
-    wire signed [31:0] v [0:N-1];
-    wire signed [31:0] u [0:N-1];
     wire signed [15:0] weights [0:N-1][0:N-1];
     reg signed [31:0] currents [0:N-1];
 
@@ -46,9 +44,9 @@ module hopfield_network(
                 .clk(clk),
                 .reset_n(reset_n),
                 .current(currents[n]),
-                .v(v[n]),
-                .u(u[n]),
-                .spike(neuron_spikes[n]) // Indexing into the vector
+                .v(),                         // Unconnected output
+                .u(),                         // Unconnected output
+                .spike(neuron_spikes[n])      // Indexing into the vector
             );
         end
     endgenerate

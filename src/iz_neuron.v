@@ -42,12 +42,6 @@ module izhikevich_neuron #(
     reg signed [31:0] bv_minus_u;
     reg signed [63:0] a_times_bv_minus_u;
 
-    // Temporary wire to hold the shifted multiplication result
-    wire signed [47:0] mult_reset_shifted;
-
-    // Assign the shifted multiplication result to the temporary wire
-    assign mult_reset_shifted = (b_param * c_param) >>> 16;
-
     // Spike output is high when membrane potential exceeds threshold
     assign spike = (v >= threshold);
 
@@ -62,12 +56,12 @@ module izhikevich_neuron #(
             v <= c_param;  
             // Assign the lower 32 bits of the shifted result to 'u'
             // This effectively takes bits [31:0] from the shifted 48-bit result
-            // Note: This truncates the upper 16 bits, assuming they are not critical
-            u <= mult_reset_shifted[31:0]; 
+            u <= (b_param * c_param) >>> 16; 
         end else begin
             // Calculate v^2
             v_sqr_long = v * v;
-            v_sqr = v_sqr_long >>> 16;
+            // Corrected Assignment: Extract bits [47:16] to assign to v_sqr
+            v_sqr = v_sqr_long[47:16];
 
             // Compute dv = 0.04v^2 + 5v + 140 - u + I
             k_v_sqr = (k_0_04 * v_sqr) >>> 16;
@@ -81,7 +75,8 @@ module izhikevich_neuron #(
             // Compute du = a(b * v - u)
             bv_minus_u = ((b_param * v) >>> 16) - u;
             a_times_bv_minus_u = (a_param * bv_minus_u) >>> 16;
-            du = a_times_bv_minus_u;
+            // Corrected Assignment: Extract lower 32 bits to assign to du
+            du = a_times_bv_minus_u[31:0];
             u_new = u + du;
 
             // Check for spike generation
