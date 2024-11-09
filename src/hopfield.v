@@ -1,6 +1,5 @@
 `default_nettype none  // Disable implicit net declarations for safety.
 
-// Hopfield network module with on-chip Hebbian learning
 module hopfield_network(
     input wire clk,                       // Clock signal
     input wire reset_n,                   // Active-low reset signal
@@ -17,7 +16,7 @@ module hopfield_network(
     // ==============================
 
     wire [N-1:0] neuron_spikes;           // Declare as vector
-    wire signed [15:0] weights [0:N-1][0:N-1];
+    wire signed [15:0] weights_flat [0:N*N-1]; // Flattened weights vector
     reg signed [31:0] currents [0:N-1];
 
     integer i, j; // Procedural loop variables
@@ -31,7 +30,7 @@ module hopfield_network(
         .reset_n(reset_n),
         .spikes(neuron_spikes),          // Now valid
         .learning_enable(learning_enable),
-        .weights(weights)
+        .weights_flat(weights_flat)      // Connect flattened weights
     );
 
     // ==============================
@@ -74,7 +73,7 @@ module hopfield_network(
             for (j = 0; j < N; j = j + 1) begin
                 if (i != j) begin
                     spike_fixed_point = neuron_spikes[j] ? 16'sd256 : 16'sd0;
-                    weighted_input = weights[i][j] * spike_fixed_point;
+                    weighted_input = weights_flat[i*N + j] * spike_fixed_point;
                     currents[i] = currents[i] + weighted_input;
                 end
             end
