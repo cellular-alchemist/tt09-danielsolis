@@ -1,5 +1,6 @@
 `default_nettype none  // Disable implicit net declarations for safety.
 
+// Hopfield network module with on-chip Hebbian learning
 module hopfield_network(
     input wire clk,                       // Clock signal
     input wire reset_n,                   // Active-low reset signal
@@ -40,14 +41,14 @@ module hopfield_network(
     genvar n;
     generate
         for (n = 0; n < N; n = n + 1) begin : neuron_array
-            wire unused_v;  // Declare unused wires
-            wire unused_u;
+            wire [31:0] unused_v;  // Declare as 32-bit wires to match port widths
+            wire [31:0] unused_u;
             izhikevich_neuron neuron_inst (
                 .clk(clk),
                 .reset_n(reset_n),
                 .current(currents[n]),
-                .v(unused_v),                         // Connect to unused wire
-                .u(unused_u),                         // Connect to unused wire
+                .v(unused_v),                         // Connect to 32-bit unused wire
+                .u(unused_u),                         // Connect to 32-bit unused wire
                 .spike(neuron_spikes[n])              // Indexing into the vector
             );
         end
