@@ -1,7 +1,7 @@
 `default_nettype none
 
 module hopfield_network(
-    input wire clk,                    // Clock signal
+    input wire clk,                    // Clock signal.
     input wire reset_n,                // Active-low reset signal
     input wire learning_enable,        // Learning enable signal
     input wire [3:0] pattern_input,    // 4-bit Pattern input (from external source)
