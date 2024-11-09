@@ -1,7 +1,9 @@
 `default_nettype none  // Disable implicit net declarations for safety.
 
-// Izhikevich neuron module with parameterizable neuron type (RS or FS).
-// Uses fixed-point arithmetic in Q16.16 format
+/*
+Izhikevich neuron module with parameterizable neuron type (RS or FS).
+Uses fixed-point arithmetic in Q16.16 format
+*/
 module izhikevich_neuron #(
     // Parameters are in Q16.16 fixed-point format (32 bits total, 16 integer bits, 16 fractional bits)
     parameter signed [31:0] a_param = 32'sd1311,        // 'a' parameter, scaled: 0.02 * 2^16
@@ -36,11 +38,11 @@ module izhikevich_neuron #(
 
     reg signed [31:0] v_new, u_new;
     reg signed [31:0] dv, du;
-    reg signed [63:0] v_sqr_long;
+    reg signed [31:0] v_sqr_long;                     // Changed from [63:0] to [31:0]
     reg signed [31:0] v_sqr;
     reg signed [31:0] k_v_sqr, k_v, total_input;
     reg signed [31:0] bv_minus_u;
-    reg signed [63:0] a_times_bv_minus_u;
+    reg signed [31:0] a_times_bv_minus_u;             // Changed from [63:0] to [31:0]
 
     // Spike output is high when membrane potential exceeds threshold
     assign spike = (v >= threshold);
@@ -58,26 +60,26 @@ module izhikevich_neuron #(
             // This effectively takes bits [31:0] from the shifted 48-bit result
             u <= (b_param * c_param) >>> 16; 
         end else begin
-            // Calculate v^2
-            v_sqr_long = v * v;
-            // Corrected Assignment: Extract bits [47:16] to assign to v_sqr
-            v_sqr = v_sqr_long[47:16];
+            // Calculate v^2 and shift right by 16 to maintain Q16.16 format
+            v_sqr_long <= (v * v) >>> 16;              // Assign [47:16] >>16 to [31:0]
+
+            // Assign lower 32 bits to v_sqr
+            v_sqr <= v_sqr_long;                       // [31:0]
 
             // Compute dv = 0.04v^2 + 5v + 140 - u + I
-            k_v_sqr = (k_0_04 * v_sqr) >>> 16;
-            k_v = (k_5 * v) >>> 16;
-            total_input = k_v_sqr + k_v + k_140 - u + current;
+            k_v_sqr <= (k_0_04 * v_sqr) >>> 16;        // [31:0] * [31:0] >>>16 = [31:0]
+            k_v <= (k_5 * v) >>> 16;                    // [31:0] * [31:0] >>>16 = [31:0]
+            total_input <= k_v_sqr + k_v + k_140 - u + current; // [31:0]
 
             // Update membrane potential 'v'
-            dv = total_input;
-            v_new = v + dv;
+            dv <= total_input;                          // [31:0]
+            v_new <= v + dv;                            // [31:0]
 
             // Compute du = a(b * v - u)
-            bv_minus_u = ((b_param * v) >>> 16) - u;
-            a_times_bv_minus_u = (a_param * bv_minus_u) >>> 16;
-            // Corrected Assignment: Extract lower 32 bits to assign to du
-            du = a_times_bv_minus_u[31:0];
-            u_new = u + du;
+            bv_minus_u <= ((b_param * v) >>> 16) - u;    // [31:0]
+            a_times_bv_minus_u <= (a_param * bv_minus_u) >>> 16; // [31:0]
+            du <= a_times_bv_minus_u;                   // [31:0]
+            u_new <= u + du;                             // [31:0]
 
             // Check for spike generation
             if (v_new >= threshold) begin
@@ -91,6 +93,7 @@ module izhikevich_neuron #(
     end
 
 endmodule
+
 
 
 
