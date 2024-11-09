@@ -1,4 +1,4 @@
-'default_nettype none // Disable implicit net declarations for safety.
+`default_nettype none
 
 module hebbian_learning #(
     parameter N = 7 // Number of neurons
@@ -33,7 +33,7 @@ module hebbian_learning #(
                     weights[i][j] <= 16'sd0;
                 end
             end
-        end else if (learning_enable) begin  // Only update weights when learning is enabled
+        end else if (learning_enable) begin
             // Hebbian learning rule: Δw_ij = η * spike_i * spike_j
             for (i = 0; i < N; i = i + 1) begin
                 for (j = 0; j < N; j = j + 1) begin
