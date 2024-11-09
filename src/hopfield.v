@@ -18,10 +18,6 @@ module hopfield_network(
     wire [N-1:0] neuron_spikes;           // Declare as vector
     wire signed [15:0] weights [0:N-1][0:N-1];
     reg signed [31:0] currents [0:N-1];
-    
-    // Declare dummy wires to connect 'v' and 'u' outputs of neurons
-    wire signed [31:0] dummy_v [0:N-1];
-    wire signed [31:0] dummy_u [0:N-1];
 
     integer i, j; // Procedural loop variables
 
@@ -44,13 +40,15 @@ module hopfield_network(
     genvar n;
     generate
         for (n = 0; n < N; n = n + 1) begin : neuron_array
+            wire unused_v;  // Declare unused wires
+            wire unused_u;
             izhikevich_neuron neuron_inst (
                 .clk(clk),
                 .reset_n(reset_n),
                 .current(currents[n]),
-                .v(dummy_v[n]),                         // Connected to dummy_v to prevent warnings
-                .u(dummy_u[n]),                         // Connected to dummy_u to prevent warnings
-                .spike(neuron_spikes[n])                // Indexing into the vector
+                .v(unused_v),                         // Connect to unused wire
+                .u(unused_u),                         // Connect to unused wire
+                .spike(neuron_spikes[n])              // Indexing into the vector
             );
         end
     endgenerate
@@ -86,3 +84,4 @@ module hopfield_network(
     end
 
 endmodule
+
