@@ -22,28 +22,50 @@ module tb ();
   wire [7:0] uo_out;
   wire [7:0] uio_out;
   wire [7:0] uio_oe;
-`ifdef GL_TEST
-  wire VPWR = 1'b1;
-  wire VGND = 1'b0;
-`endif
 
-  // Replace tt_um_example with your module name:
-  tt_um_cellular_alchemist (
+  `ifdef GL_TEST
+    wire VPWR = 1'b1;
+    wire VGND = 1'b0;
+  `endif
+
+  // Replace tt_um_example with your module name and add an instance name:
+  tt_um_cellular_alchemist uut (
 
       // Include power ports for the Gate Level test:
-`ifdef GL_TEST
-      .VPWR(VPWR),
-      .VGND(VGND),
-`endif
+      `ifdef GL_TEST
+          .VPWR(VPWR),
+          .VGND(VGND),
+      `endif
 
       .ui_in  (ui_in),    // Dedicated inputs
       .uo_out (uo_out),   // Dedicated outputs
       .uio_in (uio_in),   // IOs: Input path
       .uio_out(uio_out),  // IOs: Output path
-      .uio_oe (uio_oe),   // IOs: Enable path (active high: 0=input, 1=output)
+      .uio_oe (uio_oe),   // IOs: Enable path (1=output, 0=input)
       .ena    (ena),      // enable - goes high when design is selected
       .clk    (clk),      // clock
       .rst_n  (rst_n)     // not reset
   );
 
+  // Clock generation
+  initial begin
+    clk = 0;
+    forever #5 clk = ~clk; // Generates a clock with a period of 10 time units
+  end
+
+  // Reset and enable signals
+  initial begin
+    rst_n = 0;
+    ena = 0;
+    ui_in = 8'b0;
+    uio_in = 8'b0;
+    #20;           // Wait for 20 time units
+    rst_n = 1;     // Release reset
+    ena = 1;       // Enable the module
+  end
+
+  // Test stimulus can be added here
+  // For example, applying inputs and observing outputs
+
 endmodule
+
