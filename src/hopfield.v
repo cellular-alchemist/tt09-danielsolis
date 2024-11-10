@@ -9,7 +9,8 @@ module hopfield_network(
 );
     parameter N = 7;
 
-    wire [N-1:0] neuron_spikes;
+    // Change neuron_spikes from wire to reg since we're assigning it in an always block
+    reg [N-1:0] neuron_spikes;
     wire signed [N*N*16-1:0] weights_flat;
     reg signed [15:0] currents [0:N-1];  // Reduced to 16 bits
     
@@ -17,6 +18,9 @@ module hopfield_network(
     reg [2:0] active_neuron;
     wire [15:0] neuron_v, neuron_u;
     wire neuron_spike;
+    
+    // Registers for spike storage
+    reg [N-1:0] spike_storage;
     
     izhikevich_neuron neuron_inst (
         .clk(clk),
@@ -27,11 +31,25 @@ module hopfield_network(
         .spike(neuron_spike)
     );
 
-    // Register spikes
-    always @(posedge clk) begin
-        if (active_neuron < N)
-            neuron_spikes[active_neuron] <= neuron_spike;
-        active_neuron <= (active_neuron == N-1) ? 0 : active_neuron + 1;
+    // Register spikes and manage active neuron
+    always @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
+            active_neuron <= 0;
+            spike_storage <= 0;
+            neuron_spikes <= 0;
+        end else begin
+            // Update spike storage with current neuron's spike
+            spike_storage[active_neuron] <= neuron_spike;
+            
+            // Update active neuron counter
+            if (active_neuron == N-1) begin
+                active_neuron <= 0;
+                // Update all neuron spikes at once when we've processed all neurons
+                neuron_spikes <= spike_storage;
+            end else begin
+                active_neuron <= active_neuron + 1;
+            end
+        end
     end
 
     hebbian_learning #(.N(N)) learning_inst (
@@ -53,5 +71,5 @@ module hopfield_network(
     end
 
     assign spikes = neuron_spikes;
-endmodule
 
+endmodule
