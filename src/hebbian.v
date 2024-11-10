@@ -23,14 +23,13 @@ module hebbian_learning #(
         end
     endgenerate
 
-    // Single counter for both loops to save area
-    reg [3:0] counter_i, counter_j;
-    wire update_complete = (counter_i == N-1) && (counter_j == N-1);
+    // Single counter for both loops to save area - reduced to 3 bits
+    reg [2:0] counter_i, counter_j;
     
     always @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
-            counter_i <= 0;
-            counter_j <= 0;
+            counter_i <= 3'd0;
+            counter_j <= 3'd0;
             for (integer i = 0; i < N; i = i + 1) begin
                 for (integer j = 0; j < N; j = j + 1) begin
                     weights[i][j] <= 8'sd0;
@@ -38,20 +37,20 @@ module hebbian_learning #(
             end
         end else if (learning_enable) begin
             if (spikes[counter_i] && spikes[counter_j] && counter_i != counter_j) begin
-                if (weights[counter_i][counter_j] < 8'sd127) begin
-                    weights[counter_i][counter_j] <= weights[counter_i][counter_j] + 8'sd1;
+                if ($signed(weights[counter_i][counter_j]) < 8'sd127) begin
+                    weights[counter_i][counter_j] <= $signed(weights[counter_i][counter_j]) + 8'sd1;
                 end
             end
             
             // Update counters
             if (counter_j == N-1) begin
-                counter_j <= 0;
+                counter_j <= 3'd0;
                 if (counter_i == N-1)
-                    counter_i <= 0;
+                    counter_i <= 3'd0;
                 else
-                    counter_i <= counter_i + 1;
+                    counter_i <= counter_i + 3'd1;
             end else begin
-                counter_j <= counter_j + 1;
+                counter_j <= counter_j + 3'd1;
             end
         end
     end
