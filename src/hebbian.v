@@ -7,29 +7,30 @@ module hebbian_learning #(
     input wire reset_n,                
     input wire learning_enable,        
     input wire [N-1:0] spikes,        
-    output wire signed [N*N*16-1:0] weights_flat 
+    output wire signed [N*N*16-1:0] weights_flat, // Keep for compatibility
+    output reg signed [15:0] temp_weight          // Single weight output for verification
 );
     // Reduce weight precision to 8 bits to save area
     reg signed [7:0] weights [0:N-1][0:N-1];
 
-    // Optimized weight flattening
+    // Optimized weight flattening (keep for compatibility)
     genvar x, y;
     generate
         for (x = 0; x < N; x = x + 1) begin : outer_loop
             for (y = 0; y < N; y = y + 1) begin : inner_loop
-                // Sign extend 8-bit weights to 16-bit output
                 assign weights_flat[((x*N + y)*16) +: 16] = {{8{weights[x][y][7]}}, weights[x][y]};
             end
         end
     endgenerate
 
-    // Single counter for both loops to save area - reduced to 3 bits
+    // Single counter for both loops to save area
     reg [2:0] counter_i, counter_j;
     
     always @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
             counter_i <= 3'd0;
             counter_j <= 3'd0;
+            temp_weight <= 16'sd0;
             for (integer i = 0; i < N; i = i + 1) begin
                 for (integer j = 0; j < N; j = j + 1) begin
                     weights[i][j] <= 8'sd0;
@@ -39,6 +40,7 @@ module hebbian_learning #(
             if (spikes[counter_i] && spikes[counter_j] && counter_i != counter_j) begin
                 if ($signed(weights[counter_i][counter_j]) < 8'sd127) begin
                     weights[counter_i][counter_j] <= $signed(weights[counter_i][counter_j]) + 8'sd1;
+                    temp_weight <= $signed(weights[counter_i][counter_j]) + 16'sd1;
                 end
             end
             
@@ -54,6 +56,7 @@ module hebbian_learning #(
             end
         end
     end
+
 endmodule
 
 
